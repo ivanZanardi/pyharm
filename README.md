@@ -2,7 +2,7 @@
 ### Polyharmonic spline interpolation in PyTorch
 ---
 
-This is a PyTorch module for [polyharmonic spline interpolation in PyTorch ](https://en.wikipedia.org/wiki/Polyharmonic_spline). This implementation benefits from GPU acceleration, making it significantly faster and more suitable for larger interpolation problems.
+This is a PyTorch module for [polyharmonic spline interpolation](https://en.wikipedia.org/wiki/Polyharmonic_spline) in PyTorch. This implementation benefits from GPU acceleration, making it significantly faster and more suitable for larger interpolation problems.
 
 ## Installation
 ```
