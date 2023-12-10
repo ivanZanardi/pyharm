@@ -1,12 +1,12 @@
 # PyHarm
-### Radial Basis Function Interpolation in PyTorch
+### Polyharmonic spline interpolation in PyTorch
 ---
 
-This is a PyTorch module for [Radial Basis Function (RBF) Interpolation](https://en.wikipedia.org/wiki/Polyharmonic_spline), which is translated from [SciPy's implemenation](https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.RBFInterpolator.html). This implementation benefits from GPU acceleration, making it significantly faster and more suitable for larger interpolation problems.
+This is a PyTorch module for [polyharmonic spline interpolation in PyTorch ](https://en.wikipedia.org/wiki/Polyharmonic_spline). This implementation benefits from GPU acceleration, making it significantly faster and more suitable for larger interpolation problems.
 
 ## Installation
 ```
-pip install torchrbf
+pip install pyharm
 ```
 
 The only dependencies are PyTorch and NumPy. If you want to run the tests and benchmarks, you also need SciPy installed.
