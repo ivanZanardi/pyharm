@@ -9,36 +9,18 @@ class TestInterpolator(unittest.TestCase):
 
   def setUp(self):
     # Setup common variables for tests
-    self.batch_size = 2
-    self.nb_points = 10
-    self.dim = 3
-    self.nb_features = 4
     self.order = 2
-    self.smoothing = 0.001
+    self.smoothing = 1e-3
     self.device = 'cpu'
     self.dtype = torch.float
-    self.nb_query_points = 5
     # Create random input data
-    self.train_points = np.random.rand(
-      self.batch_size,
-      self.nb_points,
-      self.dim
-    )
-    self.train_values = np.random.rand(
-      self.batch_size,
-      self.nb_points,
-      self.nb_features
-    )
-    self.query_points = np.random.rand(
-      self.batch_size,
-      self.nb_query_points,
-      self.dim
-    )
-    self.query_values_shape = (
-      self.batch_size,
-      self.nb_query_points,
-      self.nb_features
-    )
+    b = 20
+    d, k = 3, 4
+    nt, nq = 10, 5
+    self.train_points = np.random.rand(b, nt, d)
+    self.train_values = np.random.rand(b, nt, k)
+    self.query_points = np.random.rand(b, nq, d)
+    self.query_values_shape = (b, nq, k)
 
   def test_class_construction(self):
     interpolator = PolyHarmInterpolator(
@@ -64,7 +46,6 @@ class TestInterpolator(unittest.TestCase):
     self.assertEqual(result.shape, self.query_values_shape)
 
   def test_interpolation_consistency(self):
-    # Test that interpolating at training points gives the same values
     interpolator = PolyHarmInterpolator(
       c=self.train_points,
       f=self.train_values,
