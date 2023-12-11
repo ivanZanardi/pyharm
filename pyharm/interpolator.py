@@ -64,8 +64,11 @@ class PolyHarmInterpolator(torch.nn.Module):
     order: int = 3,
     smoothing: float = 0.0,
     device: str = "cpu",
-    dtype: torch.dtype = torch.float
+    dtype: torch.dtype = torch.float,
+    *args,
+    **kwargs
   ) -> None:
+    super(PolyHarmInterpolator, self).__init__(*args, **kwargs)
     # Set dtype and device
     self.dtype = dtype
     self.device = device
@@ -79,7 +82,7 @@ class PolyHarmInterpolator(torch.nn.Module):
         x = torch.from_numpy(x).to(**self.malloc_kwargs)
       if (x.ndim != 3):
         raise ValueError(f"'{k}' must be a 3-dimensional tensor.")
-      setattr(self, k, x)
+      self.register_buffer(k, x)
     if (self.c.shape[:2] != self.f.shape[:2]):
       raise ValueError(
         "The first two dimensions of 'c' and 'f' must be the same."
@@ -89,15 +92,7 @@ class PolyHarmInterpolator(torch.nn.Module):
     self.order = int(order)
     self.phi = get_phi(self.order)
     # Fit the interpolant to the observed data
-    self.w, self.v = self._build()
-    # Add buffers to the module
-    for (k, x) in (
-      ('c', self.c),
-      ('f', self.f),
-      ('w', self.w),
-      ('v', self.v)
-    ):
-      self.register_buffer(k, x)
+    self._build()
 
   def forward(self, x: Union[torch.Tensor, np.ndarray]) -> torch.Tensor:
     """
@@ -121,7 +116,7 @@ class PolyHarmInterpolator(torch.nn.Module):
       x = torch.from_numpy(x).to(**self.malloc_kwargs)
     # Compute the contribution from the rbf term
     d = cross_squared_distance_matrix(x, self.c)
-    d_phi = self.phi(d, self.order)
+    d_phi = self.phi(d)
     rbf_term = torch.matmul(d_phi, self.w)
     # Compute the contribution from the linear term
     ones = torch.ones_like(x[..., :1], **self.malloc_kwargs)
@@ -145,7 +140,7 @@ class PolyHarmInterpolator(torch.nn.Module):
     k = self.f.shape[-1]
     # Construct the linear system
     # > Matrix A
-    amat = self.phi(pairwise_squared_distance_matrix(self.c), self.order)
+    amat = self.phi(pairwise_squared_distance_matrix(self.c))
     if (self.smoothing > 0):
       imat = torch.unsqueeze(torch.eye(n, **self.malloc_kwargs), dim=0)
       amat += self.smoothing * imat
@@ -163,6 +158,6 @@ class PolyHarmInterpolator(torch.nn.Module):
     rhs = torch.cat([self.f, rhs_zeros], dim=1)
     # Solve the linear system
     w_v = torch.linalg.solve(lhs, rhs)
-    w = w_v[:, :n, :]
-    v = w_v[:, n:, :]
-    return w, v
+    w, v = w_v[:, :n, :], w_v[:, n:, :]
+    self.register_buffer("w", w)
+    self.register_buffer("v", v)
