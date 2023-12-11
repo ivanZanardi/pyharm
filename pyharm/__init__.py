@@ -1,1 +1,1 @@
-from .RBFInterpolator import RBFInterpolator
+from .interpolator import PolyHarmInterpolator
