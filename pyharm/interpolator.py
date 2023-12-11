@@ -1,283 +1,168 @@
-import numpy as np
-import contextlib
-import warnings
 import torch
-import math
+import numpy as np
 
-from itertools import combinations_with_replacement
-from .radial_fn import SCALE_INVARIANT, RADIAL_FUNCS, MIN_DEGREE
-
-
-# SEED = 12345
-# np.random.seed(SEED)
-# torch.manual_seed(SEED)
-# torch.backends.cudnn.deterministic = True
-# torch.backends.cudnn.benchmark = True
-# torch.set_num_threads(1)
+from .functions import *
+from typing import Tuple, Union
 
 
-class RBFInterpolator(torch.nn.Module):
-    """
-    Radial basis function interpolator in Pytorch. This is a port of
-    the RBFInterpolator from scipy.interpolate.RBFInterpolator. With
-    GPU acceleration, this is much faster than the scipy version.
-    SciPy reference: https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.RBFInterpolator.html
+class PolyHarmInterpolator(torch.nn.Module):
+  r"""Interpolate batched data using polyharmonic interpolation.
 
-    @param y: (n, d) tensor of data point coordinates
-    @param d: (n, m) tensor of data vectors at y
-    @param neighbors (optional): int [CURRENTLY UNIMPLEMENTED] specifies the
-        number of neighbors to use for each interpolation point. If
-        None, all points are used.
-        Default is None.
-    @param smoothing (optional): float or (n,) tensor of smoothing parameters
-        Default is 0.0.
-    @param kernel (optional): str, kernel function to use; one of
-        ['linear', 'thin_plate_spline', 'cubic', 'quintic', 'gaussian'
-        'multiquadric', 'inverse_multiquadric', 'inverse_quadratic']
-        Default is 'thin_plate_spline'.
-    @param epsilon (optional): float, shape parameter for the kernel function.
-        If kernel is 'linear', 'thin_plate_spline', 'cubic', or
-        'quintic', then default is 1.0 and can be ignored. Must be
-        specified otherwise.
-    @param degree (optional): int, degree of the polynomial added to the
-        interpolation function. See scipy.interpolate.RBFInterpolator
-        for more details.
-    @param device (optional): str, specifies the default device to store tensors
-        and perform interpolation.
+  The interpolant has the form:
+  $$f(x) = \sum_{i = 1}^n w_i \phi(||x - c_i||) + v^\text{T}x + b.$$
 
-    Returns a callable Torch Module that interpolates the data at given points.
-    """
+  This is a sum of two terms:
+  1. A weighted sum of radial basis function (RBF) terms with
+    centers \(c_1, \ldots, c_n\).
+  2. A linear term with a bias. The \(c_i\) vectors are 'training' points.
+    The coefficients \(w\) and \(v\) are estimated such that the interpolant
+    exactly fits the value of the function at the \(c_i\) points, and the
+    vector \(w\) is orthogonal to each \(c_i\), and the vector \(w\) sums
+    to 0. With these constraints, the coefficients can be obtained by
+    solving a linear system.
 
-    def __init__(
-        self,
-        y,
-        d,
-        neighbors=None,
-        smoothing=0.0,
-        kernel="thin_plate_spline",
-        epsilon=None,
-        degree=None,
-        device="cpu",
+  The function \(\phi\) is an RBF, parametrized by an interpolation order.
+  Using `order=2` produces the well-known thin-plate spline.
+
+  We also provide the option to perform regularized interpolation. Here, the
+  interpolant is selected to trade off between the squared loss on the
+  training data and a certain measure of its curvature
+  ([details](https://en.wikipedia.org/wiki/Polyharmonic_spline)).
+  Using a regularization weight greater than zero has the effect that the
+  interpolant will no longer exactly fit the training data. However, it may
+  be less vulnerable to overfitting, particularly for high-order interpolation.
+
+  Note that the interpolation procedure is differentiable with respect to all
+  inputs besides the order parameter.
+
+  :param c: 3D tensor with shape `[batch_size, n, d]` of n d-dimensional
+            locations. These do not need to be regularly-spaced.
+  :type c: Union[torch.Tensor, np.ndarray]
+  :param f: 3D tensor with shape `[batch_size, n, k]` of n c-dimensional
+            values evaluated at train_points.
+  :type f: Union[torch.Tensor, np.ndarray]
+  :param order: (optional) Order of the interpolation. Common values are
+                1 for \(\phi(r) = r\), 2 for \(\phi(r) = r^2 \log(r)\)
+                (thin-plate spline), or 3 for \(\phi(r) = r^3\).
+  :type order: int
+  :param smoothing: (optional) Weight placed on the regularization term.
+                    This will depend substantially on the problem, and
+                    it should always be tuned. For many problems, it is
+                    reasonable to use no regularization. If using a non-zero
+                    value, we recommend a small value like 0.001.
+  :type smoothing: float
+  :param device: (optional) Specifies the default device to store tensors
+                 and perform interpolation.
+  :type device: str
+  :param dtype: (optional) Specifies the default precision.
+  :type dtype: torch.dtype
+  """
+  def __init__(
+    self,
+    c: Union[torch.Tensor, np.ndarray],
+    f: Union[torch.Tensor, np.ndarray],
+    order: int = 3,
+    smoothing: float = 0.0,
+    device: str = "cpu",
+    dtype: torch.dtype = torch.float
+  ) -> None:
+    # Set dtype and device
+    self.dtype = dtype
+    self.device = device
+    self.malloc_kwargs = {
+      "dtype": self.dtype,
+      "device": self.device
+    }
+    # Set training data
+    for (k, x) in (('c',c), ('f',f)):
+      if isinstance(x, np.ndarray):
+        x = torch.from_numpy(x).to(**self.malloc_kwargs)
+      if (x.ndim != 3):
+        raise ValueError(f"'{k}' must be a 3-dimensional tensor.")
+      setattr(self, k, x)
+    if (self.c.shape[:2] != self.f.shape[:2]):
+      raise ValueError(
+        "The first two dimensions of 'c' and 'f' must be the same."
+      )
+    # Get smoothing and kernel function
+    self.smoothing = float(smoothing)
+    self.order = int(order)
+    self.phi = get_phi(self.order)
+    # Fit the interpolant to the observed data
+    self.w, self.v = self._build()
+    # Add buffers to the module
+    for (k, x) in (
+      ('c', self.c),
+      ('f', self.f),
+      ('w', self.w),
+      ('v', self.v)
     ):
-        super().__init__()
+      self.register_buffer(k, x)
 
-        if torch.backends.cuda.matmul.allow_tf32:
-            warnings.warn(
-                "TF32 is enabled, which may cause numerical issues in PyTorch RBFInterpolator. "
-                "Consider disabling it with torch.backends.cuda.matmul.allow_tf32 = False",
-                UserWarning,
-            )
-
-        self.device = device
-
-        # init:
-        if isinstance(y, np.ndarray):
-            y = torch.from_numpy(y).to(device=device).float()
-
-        if y.ndim != 2:
-            raise ValueError("y must be a 2-dimensional tensor.")
-
-        ny, ndim = y.shape
-        if isinstance(d, np.ndarray):
-            d = torch.from_numpy(d).to(device=device).float()
-
-        if d.shape[0] != ny:
-            raise ValueError(
-                "The first dim of d must have the same length as the first dim of y."
-            )
-
-        d_shape = d.shape[1:]
-        d = d.reshape((ny, -1))
-
-        if isinstance(smoothing, (int, float)):
-            smoothing = torch.full((ny,), smoothing, device=device).float()
-        elif isinstance(smoothing, np.ndarray):
-            smoothing = torch.Tensor(smoothing).to(device=device).float()
-        elif not isinstance(smoothing, torch.Tensor):
-            raise ValueError("`smoothing` must be a scalar or a 1-dimensional tensor.")
-
-        kernel = kernel.lower()
-        if kernel not in RADIAL_FUNCS:
-            raise ValueError(f"Unknown kernel: {kernel}")
-
-        if epsilon is None:
-            if kernel in SCALE_INVARIANT:
-                epsilon = 1.0
-            else:
-                raise ValueError("Must specify `epsilon` for this kernel.")
-        else:
-            epsilon = float(epsilon)
-
-        min_degree = MIN_DEGREE.get(kernel, -1)
-        if degree is None:
-            degree = max(min_degree, 0)
-        else:
-            degree = int(degree)
-            if degree < -1:
-                raise ValueError("`degree` must be at least -1.")
-            elif degree < min_degree:
-                warnings.warn(
-                    f"`degree` is too small for this kernel. Setting to {min_degree}.",
-                    UserWarning,
-                )
-
-        if neighbors is None:
-            nobs = ny
-        else:
-            raise ValueError("neighbors currently not supported")
-
-        powers = monomial_powers(ndim, degree).to(device=device)
-        if powers.shape[0] > nobs:
-            raise ValueError("The data is not compatible with the requested degree.")
-
-        if neighbors is None:
-            shift, scale, coeffs = solve(y, d, smoothing, kernel, epsilon, powers)
-            self.register_buffer("_shift", shift)
-            self.register_buffer("_scale", scale)
-            self.register_buffer("_coeffs", coeffs)
-
-        self.register_buffer("y", y)
-        self.register_buffer("d", d)
-        self.register_buffer("smoothing", smoothing)
-        self.register_buffer("powers", powers)
-
-        self.d_shape = d_shape
-        self.neighbors = neighbors
-        self.kernel = kernel
-        self.epsilon = epsilon
-
-    def forward(self, x: torch.Tensor):
-        """
-        Returns the interpolated data at the given points `x`.
-
-        @param x: (n, d) tensor of points at which to query the interpolator
-        @param use_grad (optional): bool, whether to use Torch autograd when
-            querying the interpolator. Default is False.
-
-        Returns a (n, m) tensor of interpolated data.
-        """
-        if x.ndim != 2:
-            raise ValueError("`x` must be a 2-dimensional tensor.")
-
-        nx, ndim = x.shape
-        if ndim != self.y.shape[1]:
-            raise ValueError(
-                "Expected the second dim of `x` to have length "
-                f"{self.y.shape[1]}."
-            )
-
-        kernel_func = RADIAL_FUNCS[self.kernel]
-
-        yeps = self.y * self.epsilon
-        xeps = x * self.epsilon
-        xhat = (x - self._shift) / self._scale
-
-        kv = kernel_vector(xeps, yeps, kernel_func)
-        p = polynomial_matrix(xhat, self.powers)
-        vec = torch.cat([kv, p], dim=1)
-        out = torch.matmul(vec, self._coeffs)
-        out = out.reshape((nx,) + self.d_shape)
-        return out
-
-
-def kernel_vector(x, y, kernel_func):
-    """Evaluate radial functions with centers `y` for all points in `x`."""
-    return kernel_func(torch.cdist(x, y))
-
-
-def polynomial_matrix(x, powers):
-    """Evaluate monomials at `x` with given `powers`"""
-    x_ = torch.repeat_interleave(x, repeats=powers.shape[0], dim=0)
-    powers_ = powers.repeat(x.shape[0], 1)
-    return torch.prod(x_**powers_, dim=1).view(x.shape[0], powers.shape[0])
-
-
-def kernel_matrix(x, kernel_func):
-    """Returns radial function values for all pairs of points in `x`."""
-    return kernel_func(torch.cdist(x, x))
-
-
-def monomial_powers(ndim, degree):
-    """Return the powers for each monomial in a polynomial.
-
-    Parameters
-    ----------
-    ndim : int
-        Number of variables in the polynomial.
-    degree : int
-        Degree of the polynomial.
-
-    Returns
-    -------
-    (nmonos, ndim) int ndarray
-        Array where each row contains the powers for each variable in a
-        monomial.
-
+  def forward(self, x: Union[torch.Tensor, np.ndarray]) -> torch.Tensor:
     """
-    nmonos = math.comb(degree + ndim, ndim)
-    out = torch.zeros((nmonos, ndim), dtype=torch.int32)
-    count = 0
-    for deg in range(degree + 1):
-        for mono in combinations_with_replacement(range(ndim), deg):
-            for var in mono:
-                out[count, var] += 1
-            count += 1
+    Apply polyharmonic interpolation model to data.
 
-    return out
+    Given coefficients `w` and `v` for the interpolation model,
+    the interpolated function is evaluated at query points `x`.
 
+    :param x: 3D tensor with shape [batch_size, m, d]
+              to evaluate the interpolation at.
+    :type x: torch.Tensor
 
-def build(y, d, smoothing, kernel, epsilon, powers):
-    """Build the RBF linear system"""
+    :return: Polyharmonic interpolation evaluated at query points `x`.
+    :rtype: torch.Tensor
 
-    p = d.shape[0]
-    s = d.shape[1]
-    r = powers.shape[0]
-    kernel_func = RADIAL_FUNCS[kernel]
+    :raises ValueError: If the input tensor `x` is not 3-dimensional.
+    """
+    if (x.ndim != 3):
+      raise ValueError("'x' must be a 3-dimensional tensor.")
+    if isinstance(x, np.ndarray):
+      x = torch.from_numpy(x).to(**self.malloc_kwargs)
+    # Compute the contribution from the rbf term
+    d = cross_squared_distance_matrix(x, self.c)
+    d_phi = self.phi(d, self.order)
+    rbf_term = torch.matmul(d_phi, self.w)
+    # Compute the contribution from the linear term
+    ones = torch.ones_like(x[..., :1], **self.malloc_kwargs)
+    x_pad = torch.concat([x, ones], dim=2)
+    linear_term = torch.matmul(x_pad, self.v)
+    return rbf_term + linear_term
 
-    mins = torch.min(y, dim=0).values
-    maxs = torch.max(y, dim=0).values
-    shift = (maxs + mins) / 2
-    scale = (maxs - mins) / 2
+  def _build(self) -> Tuple[torch.Tensor, torch.Tensor]:
+    r"""
+    Solve for interpolation coefficients.
 
-    scale[scale == 0.0] = 1.0
+    Computes the coefficients of the polyharmonic interpolant for
+    the training data defined by `(c, f)` using the kernel $\phi$.
 
-    yeps = y * epsilon
-    yhat = (y - shift) / scale
-
-    lhs = torch.empty((p + r, p + r), device=d.device).float()
-    lhs[:p, :p] = kernel_matrix(yeps, kernel_func)
-    lhs[:p, p:] = polynomial_matrix(yhat, powers)
-    lhs[p:, :p] = lhs[:p, p:].T
-    lhs[p:, p:] = 0.0
-    lhs[:p, :p] += torch.diag(smoothing)
-
-    rhs = torch.empty((r + p, s), device=d.device).float()
-    rhs[:p] = d
-    rhs[p:] = 0.0
-
-    return lhs, rhs, shift, scale
-
-
-def solve(y, d, smoothing, kernel, epsilon, powers):
-    """Build then solve the RBF linear system"""
-
-    lhs, rhs, shift, scale = build(y, d, smoothing, kernel, epsilon, powers)
-    try:
-        coeffs = torch.linalg.solve(lhs, rhs)
-    except RuntimeError:  # singular matrix
-        if coeffs is None:
-            msg = "Singular matrix."
-            nmonos = powers.shape[0]
-            if nmonos > 0:
-                pmat = polynomial_matrix((y - shift) / scale, powers)
-                rank = torch.linalg.matrix_rank(pmat)
-                if rank < nmonos:
-                    msg = (
-                        "Singular matrix. The matrix of monomials evaluated at "
-                        "the data point coordinates does not have full column "
-                        f"rank ({rank}/{nmonos})."
-                    )
-
-            raise ValueError(msg)
-
-    return shift, scale, coeffs
+    :return: Tuple of weights on each interpolation center (`w`)
+             and weights on each input dimension (`v`).
+    :rtype: Tuple[torch.Tensor, torch.Tensor]
+    """
+    # Get dimensions
+    b, n, d = list(self.c.shape)
+    k = self.f.shape[-1]
+    # Construct the linear system
+    # > Matrix A
+    amat = self.phi(pairwise_squared_distance_matrix(self.c), self.order)
+    if (self.smoothing > 0):
+      imat = torch.unsqueeze(torch.eye(n, **self.malloc_kwargs), dim=0)
+      amat += self.smoothing * imat
+    # > Matrix B
+    ones = torch.ones_like(self.c[..., :1], **self.malloc_kwargs)
+    bmat = torch.cat([self.c, ones], dim=2)
+    bmat_ncols = bmat.shape[2]
+    # > Left hand side
+    lhs_zeros = torch.zeros([b, bmat_ncols, bmat_ncols], **self.malloc_kwargs)
+    block_right = torch.cat([bmat, lhs_zeros], dim=1)
+    block_left = torch.cat([amat, torch.permute(bmat, dims=(0,2,1))], dim=1)
+    lhs = torch.cat([block_left, block_right], dim=2)
+    # > Right hand side
+    rhs_zeros = torch.zeros([b, d + 1, k], **self.malloc_kwargs)
+    rhs = torch.cat([self.f, rhs_zeros], dim=1)
+    # Solve the linear system
+    w_v = torch.linalg.solve(lhs, rhs)
+    w = w_v[:, :n, :]
+    v = w_v[:, n:, :]
+    return w, v

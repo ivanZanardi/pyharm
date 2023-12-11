@@ -1,12 +1,12 @@
 import torch
 
-EPSILON = 1e-10
+_EPSILON = 1e-10
 
 
-# Nonlinear function
+# Nonlinear kernel function
 # ====================================
 def get_phi(order: int) -> callable:
-  """
+  r"""
   Coordinate-wise nonlinearity used to define the order of the interpolation.
 
   See https://en.wikipedia.org/wiki/Polyharmonic_spline for the definition.
@@ -14,7 +14,7 @@ def get_phi(order: int) -> callable:
   :param order: Interpolation order.
   :type order: int
 
-  :return: Coordinate-wise nonlinear function.
+  :return: Coordinate-wise nonlinear kernel $\phi$.
   :rtype: callable
   """
   if (order == 1):
@@ -29,23 +29,23 @@ def get_phi(order: int) -> callable:
     return lambda r: _phi_odd(r, order)
 
 def _phi_1(r: torch.Tensor) -> torch.Tensor:
-  r_eps = torch.clamp(r, min=EPSILON)
+  r_eps = torch.clamp(r, min=_EPSILON)
   return torch.sqrt(r_eps)
 
 def _phi_2(r: torch.Tensor) -> torch.Tensor:
-  r_eps = torch.clamp(r, min=EPSILON)
+  r_eps = torch.clamp(r, min=_EPSILON)
   return 0.5 * r * torch.log(r_eps)
 
 def _phi_4(r: torch.Tensor) -> torch.Tensor:
-  r_eps = torch.clamp(r, min=EPSILON)
+  r_eps = torch.clamp(r, min=_EPSILON)
   return 0.5 * torch.square(r) * torch.log(r_eps)
 
 def _phi_even(r: torch.Tensor, order: int) -> torch.Tensor:
-  r_eps = torch.clamp(r, min=EPSILON)
+  r_eps = torch.clamp(r, min=_EPSILON)
   return 0.5 * torch.pow(r_eps, 0.5 * order) * torch.log(r_eps)
 
 def _phi_odd(r: torch.Tensor, order: int) -> torch.Tensor:
-  r_eps = torch.clamp(r, min=EPSILON)
+  r_eps = torch.clamp(r, min=_EPSILON)
   return torch.pow(r_eps, 0.5 * order)
 
 
