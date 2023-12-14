@@ -16,6 +16,11 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 
+import os
+import sys
+sys.path.insert(0, os.path.abspath('./../../'))
+import pyharm
+
 from importlib.metadata import version as ver
 
 # -- General configuration ------------------------------------------------
@@ -64,7 +69,7 @@ author = 'Ivan Zanardi'
 # built documents.
 
 # The short X.Y version.
-version = ver('pyharm')
+version = pyharm.__version__
 # The full version, including alpha/beta/rc tags.
 release = version
 

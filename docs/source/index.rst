@@ -10,7 +10,7 @@ Welcome to PyHarm's documentation!
    :maxdepth: 2
    :caption: Contents:
    
-   ./../README
+   README
 
 API
 ===
