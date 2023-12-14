@@ -65,8 +65,8 @@ def cross_squared_distance_matrix(
   :type y: torch.Tensor
 
   :return: 3D tensor with shape [batch_size, n, m]. Each
-            element represents the squared Euclidean distance
-            between vectors x[b, i, :] and y[b, j, :].
+           element represents the squared Euclidean distance
+           between vectors x[b, i, :] and y[b, j, :].
   :rtype: torch.Tensor
   """
   # Compute quadratic norm
@@ -91,8 +91,8 @@ def pairwise_squared_distance_matrix(
   :type x: torch.Tensor
 
   :return: 3D tensor with shape [batch_size, n, n]. Each
-            element represents the squared Euclidean distance
-            between vectors x[b, i, :] and x[b, j, :].
+           element represents the squared Euclidean distance
+           between vectors x[b, i, :] and x[b, j, :].
   :rtype: torch.Tensor
   """
   # Compute quadratic values
