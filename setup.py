@@ -5,7 +5,7 @@ from setuptools import setup
 from setuptools import find_packages
 
 
-# PyCOMET info
+# PyHarm info
 file = open('pyharm/__init__.py').read()
 info = {}
 for k in ("author", "email", "url", "license", "version"):
