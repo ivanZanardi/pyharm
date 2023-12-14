@@ -1,32 +1,3 @@
-from setuptools import setup, find_packages
-import codecs
-import os
-
-here = os.path.abspath(os.path.dirname(__file__))
-
-with codecs.open(os.path.join(here, "README.md"), encoding="utf-8") as fh:
-    long_description = "\n" + fh.read()
-
-VERSION = '0.0.1'
-DESCRIPTION = 'Polyharmonic spline interpolation in PyTorch'
-
-# Setting up
-setup(
-    name="torchrbf",
-    version=VERSION,
-    author="Arman Maesumi",
-    author_email="arman.maesumi@gmail.com",
-    description=DESCRIPTION,
-    long_description_content_type="text/markdown",
-    long_description=long_description,
-    packages=find_packages(),
-    install_requires=[],
-    keywords=['python', 'pytorch', 'rbf', 'interpolation', 'radial basis function'],
-    classifiers=[]
-)
-
-
-
 import io
 import re
 
@@ -35,7 +6,7 @@ from setuptools import find_packages
 
 
 # PyCOMET info
-file = open('pycomet/__init__.py').read()
+file = open('pyharm/__init__.py').read()
 info = {}
 for k in ("author", "email", "url", "license", "version"):
   info[k] = re.search(
@@ -43,7 +14,7 @@ for k in ("author", "email", "url", "license", "version"):
   ).group(1)
 
 # Description
-description = 'Polyharmonic spline interpolation in PyTorch'
+description = "Polyharmonic spline interpolation in PyTorch"
 
 # Dependencies
 with open("requirements.txt", "r") as f:
@@ -73,11 +44,11 @@ keywords = [
   "Spline",
   "Polyharmonic Spline",
   "RBF",
-  "Radial Basis Function",
+  "Radial Basis Function"
 ]
 
 setup(
-  name="pycomet",
+  name="pyharm",
   version=info["version"],
   description=description,
   long_description=long_description,
