@@ -1,4 +1,4 @@
-__author__  = "Ivan Zanardi"
+__author__ = "Ivan Zanardi"
 __email__ = "zanardi3@illinois.edu"
 __url__ = "https://github.com/ivanZanardi/pyharm"
 __license__ = "MIT"

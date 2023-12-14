@@ -5,7 +5,7 @@ from setuptools import setup
 from setuptools import find_packages
 
 
-# PyHarm info
+# Info
 file = open('pyharm/__init__.py').read()
 info = {}
 for k in ("author", "email", "url", "license", "version"):
@@ -58,6 +58,7 @@ setup(
   url=info["url"],
   license=info["license"],
   install_requires=install_requires,
+  extras_require={"tests": ["pytest"]},
   classifiers=classifiers,
   keywords=keywords,
   packages=find_packages(),

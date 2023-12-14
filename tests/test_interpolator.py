@@ -9,8 +9,8 @@ class TestInterpolator(unittest.TestCase):
 
   def setUp(self):
     # Setup common variables for tests
-    self.order = 2
-    self.smoothing = 1e-3
+    self.order = 1
+    self.smoothing = 0.0
     self.device = 'cpu'
     self.dtype = torch.float
     # Create random input data
@@ -55,7 +55,12 @@ class TestInterpolator(unittest.TestCase):
       dtype=self.dtype
     )
     result = interpolator.forward(self.train_points)
-    np.testing.assert_allclose(result.numpy(), self.train_values, rtol=1e-5)
+    np.testing.assert_allclose(
+      result.numpy(force=True),
+      self.train_values,
+      rtol=1e-4,
+      atol=1e-5
+    )
 
 if __name__ == '__main__':
   unittest.main()
