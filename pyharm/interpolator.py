@@ -4,46 +4,47 @@ import numpy as np
 from .functions import *
 from typing import Tuple, Union
 
-
 class PolyHarmInterpolator(torch.nn.Module):
-  r"""Interpolate batched data using polyharmonic interpolation.
+
+  r"""
+  Interpolate batched data using polyharmonic interpolation.
 
   The interpolant has the form:
-  $$f(x) = \sum_{i = 1}^n w_i \phi(||x - c_i||) + v^\text{T}x + b.$$
+  :math:`{f(x) = \sum_{i = 1}^n w_i \phi(||x - c_i||) + v^\text{T}x + b}`.
 
   This is a sum of two terms:
-  1. A weighted sum of radial basis function (RBF) terms with
-    centers \(c_1, \ldots, c_n\).
-  2. A linear term with a bias. The \(c_i\) vectors are 'training' points.
-    The coefficients \(w\) and \(v\) are estimated such that the interpolant
-    exactly fits the value of the function at the \(c_i\) points, and the
-    vector \(w\) is orthogonal to each \(c_i\), and the vector \(w\) sums
-    to 0. With these constraints, the coefficients can be obtained by
-    solving a linear system.
+  * A weighted sum of radial basis function (RBF) terms
+  with centers :math:`{\left(c_1, \ldots, c_n\right)}`.
+  * A linear term with a bias. The :math:`{c_i}` vectors are 'training' points.
+  The coefficients :math:`{w}` and :math:`{v}` are estimated such that the interpolant
+  exactly fits the value of the function at the :math:`{c_i}` points, and the
+  vector :math:`{w}` is orthogonal to each :math:`{c_i}`, and the vector :math:`{w}` sums
+  to 0. With these constraints, the coefficients can be obtained by
+  solving a linear system.
 
-  The function \(\phi\) is an RBF, parametrized by an interpolation order.
+  The function :math:`{\phi}` is an RBF, parametrized by an interpolation order.
   Using `order=2` produces the well-known thin-plate spline.
 
   We also provide the option to perform regularized interpolation. Here, the
   interpolant is selected to trade off between the squared loss on the
   training data and a certain measure of its curvature
-  ([details](https://en.wikipedia.org/wiki/Polyharmonic_spline)).
+  (`details <https://en.wikipedia.org/wiki/Polyharmonic_spline>`_).
   Using a regularization weight greater than zero has the effect that the
-  interpolant will no longer exactly fit the training data. However, it may
-  be less vulnerable to overfitting, particularly for high-order interpolation.
+  interpolant will no longer exactly fit the training data. However, it may be
+  less vulnerable to overfitting, particularly for high-order interpolation.
 
   Note that the interpolation procedure is differentiable with respect to all
   inputs besides the order parameter.
 
   :param c: 3D tensor with shape `[batch_size, n, d]` of n d-dimensional
             locations. These do not need to be regularly-spaced.
-  :type c: Union[torch.Tensor, np.ndarray]
+  :type c: torch.Tensor or np.ndarray
   :param f: 3D tensor with shape `[batch_size, n, k]` of n c-dimensional
             values evaluated at train_points.
-  :type f: Union[torch.Tensor, np.ndarray]
+  :type f: torch.Tensor or np.ndarray
   :param order: (optional) Order of the interpolation. Common values are
-                1 for \(\phi(r) = r\), 2 for \(\phi(r) = r^2 \log(r)\)
-                (thin-plate spline), or 3 for \(\phi(r) = r^3\).
+                1 for :math:`{\phi(r)=r}`, 2 for :math:`{\phi(r)=r^2 \log(r)}`
+                (thin-plate spline), or 3 for :math:`{\phi(r)=r^3}`.
   :type order: int
   :param smoothing: (optional) Weight placed on the regularization term.
                     This will depend substantially on the problem, and
@@ -76,7 +77,7 @@ class PolyHarmInterpolator(torch.nn.Module):
       "dtype": self.dtype,
       "device": self.device
     }
-    # Set training data
+    # Training data
     for (k, x) in (('c',c), ('f',f)):
       if isinstance(x, np.ndarray):
         x = torch.from_numpy(x).to(**self.malloc_kwargs)
@@ -92,16 +93,16 @@ class PolyHarmInterpolator(torch.nn.Module):
     self.order = int(order)
     self.phi = get_phi(self.order)
     # Fit the interpolant to the observed data
-    self._build()
+    self.build()
 
   def forward(self, x: Union[torch.Tensor, np.ndarray]) -> torch.Tensor:
-    """
-    Apply polyharmonic interpolation model to data.
+    r"""
+    Apply polyharmonic interpolation model to new input data.
 
-    Given coefficients `w` and `v` for the interpolation model,
-    the interpolated function is evaluated at query points `x`.
+    Given coefficients :math:`{w}` and :math:`{v}` for the interpolation 
+    model, the interpolated function is evaluated at query points :math:`{x}`.
 
-    :param x: 3D tensor with shape [batch_size, m, d]
+    :param x: 3D tensor with shape `[batch_size, m, d]`
               to evaluate the interpolation at.
     :type x: torch.Tensor
 
@@ -124,12 +125,13 @@ class PolyHarmInterpolator(torch.nn.Module):
     linear_term = torch.matmul(x_pad, self.v)
     return rbf_term + linear_term
 
-  def _build(self) -> Tuple[torch.Tensor, torch.Tensor]:
+  def build(self) -> Tuple[torch.Tensor, torch.Tensor]:
     r"""
     Solve for interpolation coefficients.
 
-    Computes the coefficients of the polyharmonic interpolant for
-    the training data defined by `(c, f)` using the kernel $\phi$.
+    Computes the coefficients :math:`{w}` and :math:`{v}` of the 
+    polyharmonic interpolant for the training data defined by 
+    :math:`{\left(c, f\right)}` using the kernel :math:`{\phi}`.
 
     :return: Tuple of weights on each interpolation center (`w`)
              and weights on each input dimension (`v`).

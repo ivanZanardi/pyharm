@@ -7,14 +7,16 @@ _EPSILON = 1e-10
 # ====================================
 def get_phi(order: int) -> callable:
   r"""
-  Coordinate-wise nonlinearity used to define the order of the interpolation.
+  Coordinate-wise nonlinear function used to 
+  define the order of the interpolation.
 
-  See https://en.wikipedia.org/wiki/Polyharmonic_spline for the definition.
+  See `here <https://en.wikipedia.org/wiki/Polyharmonic_spline>`_ 
+  for the definition.
 
   :param order: Interpolation order.
   :type order: int
 
-  :return: Coordinate-wise nonlinear kernel $\phi$.
+  :return: Coordinate-wise nonlinear kernel :math:`{\phi}`.
   :rtype: callable
   """
   if (order == 1):
@@ -57,16 +59,16 @@ def cross_squared_distance_matrix(
 ) -> torch.Tensor:
   """
   Pairwise squared distance between two (batch) matrices' rows (2nd dim).
-  Computes the pairwise distances between rows of x and rows of y.
+  Computes the pairwise distances between rows of `x` and rows of `y`.
 
-  :param x: 3D float tensor with shape [batch_size, n, d].
+  :param x: 3D float tensor with shape `[batch_size, n, d]`.
   :type x: torch.Tensor
-  :param y: 3D float tensor with shape [batch_size, m, d].
+  :param y: 3D float tensor with shape `[batch_size, m, d]`.
   :type y: torch.Tensor
 
-  :return: 3D tensor with shape [batch_size, n, m]. Each
+  :return: 3D tensor with shape `[batch_size, n, m]`. Each
            element represents the squared Euclidean distance
-           between vectors x[b, i, :] and y[b, j, :].
+           between vectors `x[b, i, :]` and `y[b, j, :]`.
   :rtype: torch.Tensor
   """
   # Compute quadratic norm
@@ -87,12 +89,12 @@ def pairwise_squared_distance_matrix(
   Compute pairwise squared distance among a (batch) matrix's rows (2nd dim).
   It is faster than `cross_squared_distance_matrix`.
 
-  :param x: 3D tensor with shape [batch_size, n, d].
+  :param x: 3D tensor with shape `[batch_size, n, d]`.
   :type x: torch.Tensor
 
-  :return: 3D tensor with shape [batch_size, n, n]. Each
+  :return: 3D tensor with shape `[batch_size, n, n]`. Each
            element represents the squared Euclidean distance
-           between vectors x[b, i, :] and x[b, j, :].
+           between vectors `x[b, i, :]` and `x[b, j, :]`.
   :rtype: torch.Tensor
   """
   # Compute quadratic values
