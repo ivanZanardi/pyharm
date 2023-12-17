@@ -1,33 +1,31 @@
-.. PyHarm documentation master file, created by
-    sphinx-quickstart on Thu Dec 14 15:59:13 2023.
-    You can adapt this file completely to your liking, but it should at least
-    contain the root `toctree` directive.
+PyHarm
+======
 
-Welcome to PyHarm's documentation!
-==================================
+**Polyharmonic spline interpolation in PyTorch**
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Contents:
-   
-   README
+`PyHarm <https://github.com/ivanZanardi/pyharm>`_ is a PyTorch module designed for efficient `polyharmonic spline interpolation <https://en.wikipedia.org/wiki/Polyharmonic_spline>`_.
+Leveraging GPU acceleration, this implementation excels in performance, making it well-suited for large-scale interpolation tasks.
+
+If you are looking for information on a specific function, class or method, the API section of the documentation is for you.
 
 .. note::
 
    This project is under active development.
 
-API
-===
+.. toctree::
+   :maxdepth: 2
+   :caption: Contents
 
-If you are looking for information on a specific function, class or method, this part of the documentation is for you.
+   contents
 
 .. toctree::
    :maxdepth: 2
+   :caption: API
 
    pyharm
 
 Indices and tables
-==================
+------------------
 
 * :ref:`genindex`
 * :ref:`modindex`
