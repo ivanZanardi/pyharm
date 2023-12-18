@@ -30,7 +30,7 @@ pytest <path-to-pyharm>
 
 ## Explore
 
-Check out the [examples](https://github.com/ivanZanardi/pyharm/tree/main/examples) provided in the repository to see PyHarm in action. Please see the [documentation](https://pyharmspline.readthedocs.io/en/latest/index.html) website for a detailed user guide on PyHarm.
+Check out the [examples](https://github.com/ivanZanardi/pyharm/tree/main/examples) provided in the repository to see PyHarm in action. Please see the [documentation](https://pyharmspline.readthedocs.io/en/latest/index.html) website for a detailed user guide.
 
 ## License
 
