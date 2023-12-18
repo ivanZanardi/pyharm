@@ -1,17 +1,25 @@
 Installation
 ============
 
+Install PyHarm using the following command:
+
 .. code-block::
 
    pip install pyharm
 
-Alternatively, you can run the following command with the test option to execute regression tests:
-   
-.. code-block::
-   
-   pip install --install-option test
+PyHarm has minimal dependencies, requiring only PyTorch and NumPy.
 
-The only dependencies are PyTorch and NumPy.
+If you're interested in contributing or want to use PyHarm in developer/editable mode with test dependencies, install it as follows:
+
+.. code-block::
+
+   pip install -e pyharm[test]
+
+To run the tests, simply execute:
+
+.. code-block::
+
+   pytest <path-to-pyharm>
 
 Explore
 ============
@@ -21,4 +29,4 @@ Check out the `examples <https://github.com/ivanZanardi/pyharm/tree/main/example
 License
 ============
 
-PyHarm is distributed under the `MIT license <https://github.com/ivanZanardi/pyharm/blob/main/LICENSE>`_.
+PyHarm is distributed under the `MIT license <https://github.com/ivanZanardi/pyharm/blob/main/LICENSE>`_. Feel free to use, modify, and contribute to this project within the terms of the license.
