@@ -3,6 +3,7 @@
 **Polyharmonic spline interpolation in PyTorch**
 
 ---
+[![Documentation Status](https://readthedocs.org/projects/pyharmspline/badge/?version=latest)](https://pyharmspline.readthedocs.io/en/latest/?badge=latest)
 
 PyHarm is a PyTorch module designed for efficient [polyharmonic spline interpolation](https://en.wikipedia.org/wiki/Polyharmonic_spline). Leveraging GPU acceleration, this implementation excels in performance, making it well-suited for large-scale interpolation tasks.
 
