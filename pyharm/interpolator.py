@@ -68,7 +68,6 @@ class PolyHarmInterpolator(torch.nn.Module):
   ) -> None:
     super(PolyHarmInterpolator, self).__init__(*args, **kwargs)
     self._built = False
-    self.training = False
     # Set dtype and device
     self.dtype = dtype
     self.device = device
@@ -79,7 +78,8 @@ class PolyHarmInterpolator(torch.nn.Module):
     # Set training data
     for (k, x) in (('c',c), ('f',f)):
       if isinstance(x, np.ndarray):
-        x = torch.from_numpy(x).to(**self.malloc_kwargs)
+        x = torch.from_numpy(x)
+      x = x.to(**self.malloc_kwargs)
       if (x.ndim != 3):
         raise ValueError(f"'{k}' must be a 3-dimensional tensor.")
       self.register_buffer(k, x)
@@ -118,6 +118,8 @@ class PolyHarmInterpolator(torch.nn.Module):
       raise ValueError("'x' must be a 3-dimensional tensor.")
     if isinstance(x, np.ndarray):
       x = torch.from_numpy(x).to(**self.malloc_kwargs)
+    if (x.device != self.device):
+      x = x.to(**self.malloc_kwargs)
     # Compute the contribution from the rbf term
     d = cross_squared_distance_matrix(x, self.c)
     d_phi = self.phi(d)
