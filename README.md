@@ -8,17 +8,25 @@ PyHarm is a PyTorch module designed for efficient [polyharmonic spline interpola
 
 ## Installation
 
+Install PyHarm using the following command:
+
 ```bash
 pip install pyharm
 ```
 
-Alternatively, you can run the following command with the test option to execute regression tests:
+PyHarm has minimal dependencies, requiring only PyTorch and NumPy.
+
+If you're interested in contributing or want to use PyHarm in developer/editable mode with test dependencies, install it as follows:
 
 ```bash
-pip install --install-option test
+pip install -e pyharm[test]
 ```
 
-The only dependencies are PyTorch and NumPy.
+To run the tests, simply execute:
+
+```bash
+pytest <path-to-pyharm>
+```
 
 ## Explore
 
@@ -26,4 +34,4 @@ Check out the [examples](https://github.com/ivanZanardi/pyharm/tree/main/example
 
 ## License
 
-PyHarm is distributed under the [MIT license](https://github.com/ivanZanardi/pyharm/blob/main/LICENSE).
+PyHarm is distributed under the [MIT license](https://github.com/ivanZanardi/pyharm/blob/main/LICENSE). Feel free to use, modify, and contribute to this project within the terms of the license.
